@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 
+// #define JSON_DEBUG_ENABLED
+#define JSON_ERRORS_ENABLED
+
 typedef enum {
 	JSON_NULL,
 	JSON_STRING,
@@ -70,5 +73,6 @@ void json_print(JsonValue* json);
 #define JSON_IS_NULL(json) (json->json_type == JSON_NULL)
 #define JSON_IS_OBJECT(json) (json->json_type == JSON_OBJECT)
 #define JSON_IS_ARRAY(json) (json->json_type == JSON_ARRAY)
+
 
 #endif // JSON_L_H

@@ -2,9 +2,23 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+
+
+#ifdef JSON_DEBUG_ENABLED
+	#define JSON_DEBUG(...) { printf(__VA_ARGS__); fflush(stdout); }
+#else
+	#define JSON_DEBUG(...) {}
+#endif
+
+#ifdef JSON_ERRORS_ENABLED
+	#define JSON_ERROR(...) { fprintf(stderr, __VA_ARGS__); fflush(stdout); }
+#else
+	#define JSON_ERROR(...) {}
+#endif
+
 
 typedef enum {
 	TOKEN_BRACE_OPEN,
@@ -18,8 +32,9 @@ typedef enum {
 } JsonToken;
 
 typedef struct {
-	const char* data;
 	int position;
+	int length;
+	const char* data;
 } JsonTokenizer;
 
 static JsonValue* json_value(JsonTokenizer* tokenizer);
@@ -41,7 +56,17 @@ static void whitespace(JsonTokenizer* tokenizer) {
 	}
 }
 
-static JsonToken peek(JsonTokenizer* tokenizer) {
+static char peek(JsonTokenizer* tokenizer, int offset) {
+	if (tokenizer->position + offset >= tokenizer->length)
+		return '\0';
+	return tokenizer->data[tokenizer->position + offset];
+}
+
+static bool is_end(JsonTokenizer* tokenizer) {
+	return tokenizer->position >= tokenizer->length;
+}
+
+static JsonToken peek_token(JsonTokenizer* tokenizer) {
 	switch (tokenizer->data[tokenizer->position]) {
 		case '{': return TOKEN_BRACE_OPEN;
 		case '}': return TOKEN_BRACE_CLOSE;
@@ -55,7 +80,7 @@ static JsonToken peek(JsonTokenizer* tokenizer) {
 }
 
 static bool consume(JsonTokenizer* tokenizer, JsonToken token) {
-	if (peek(tokenizer) == token) {
+	if (peek_token(tokenizer) == token) {
 		tokenizer->position++;
 		return true;
 	}
@@ -63,7 +88,7 @@ static bool consume(JsonTokenizer* tokenizer, JsonToken token) {
 }
 
 static inline char current(JsonTokenizer* tokenizer) {
-	return tokenizer->data[tokenizer->position];
+	return peek(tokenizer, 0);
 }
 
 bool is_numeric(char c) {
@@ -73,7 +98,7 @@ bool is_numeric(char c) {
 static JsonValue* json_create() {
 	JsonValue* json = malloc(sizeof(JsonValue));
 	if (!json) {
-		printf("json: malloc failed while creating bool");
+		JSON_DEBUG("json: malloc failed while creating bool")
 		exit(1);
 	}
 	memset(json, 0, sizeof(JsonValue));
@@ -120,27 +145,32 @@ static JsonValue* object(JsonTokenizer* tokenizer) {
 
 	tokenizer->position++; // step over the {
 	whitespace(tokenizer);
-	if (peek(tokenizer) == TOKEN_BRACE_CLOSE) {
+	if (peek_token(tokenizer) == TOKEN_BRACE_CLOSE) {
 		tokenizer->position++; // step over the }
 		return object;
 	}
 	while(1) {
 		JsonString* key = string_value(tokenizer);
 		if (!key) {
-			printf("json: object key returned null\n");
+			JSON_DEBUG("json: object key returned null\n");
+			json_destroy(object);
 			return NULL;
 		}
 
 		whitespace(tokenizer);
 		if (!consume(tokenizer, TOKEN_COLON)) {
-			printf("json: object expected colon, got %c\n", current(tokenizer));
+			JSON_DEBUG("json: object expected colon, got %c\n", current(tokenizer));
+			json_destroy(object);
+			free(key);
 			return NULL;
 		}
 		whitespace(tokenizer);
 
 		JsonValue* value = json_value(tokenizer);
 		if (!value) {
-			printf("json: object value returned null\n");
+			JSON_DEBUG("json: object value returned null\n");
+			json_destroy(object);
+			free(key);
 			return NULL;
 		}
 
@@ -156,11 +186,12 @@ static JsonValue* object(JsonTokenizer* tokenizer) {
 
 		whitespace(tokenizer);
 
-		if (peek(tokenizer) == TOKEN_BRACE_CLOSE)
+		if (peek_token(tokenizer) == TOKEN_BRACE_CLOSE)
 			break;
 
 		if (!consume(tokenizer, TOKEN_COMMA)) {
-			printf("json: object expected comma, got %c\n", current(tokenizer));
+			JSON_ERROR("json: object expected comma, got %c\n", current(tokenizer));
+			json_destroy(object);
 			return NULL;
 		}
 		whitespace(tokenizer);
@@ -177,18 +208,19 @@ static JsonValue* array(JsonTokenizer* tokenizer) {
 	array->array.array = malloc(sizeof(JsonKeyValue) * 8);
 
 	if (!consume(tokenizer, TOKEN_BRACKET_OPEN)) {
-		printf("json: array expected bracket open, got %c\n", current(tokenizer));
+		JSON_DEBUG("json: array expected bracket open, got %c\n", current(tokenizer));
 		return NULL;
 	}
 	whitespace(tokenizer);
-	if (peek(tokenizer) == TOKEN_BRACKET_CLOSE) {
+	if (peek_token(tokenizer) == TOKEN_BRACKET_CLOSE) {
 		tokenizer->position++; // step over the ]
 		return array;
 	}
 	while(1) {
 		JsonValue* element = json_value(tokenizer);
 		if (!element) {
-			printf("json: array value returned null\n");
+			JSON_DEBUG("json: array value returned null\n");
+			json_destroy(array);
 			return NULL;
 		}
 		if (array->array.length >= array->array.capacity) {
@@ -199,11 +231,12 @@ static JsonValue* array(JsonTokenizer* tokenizer) {
 		array->array.array[array->array.length++] = element;
 		whitespace(tokenizer);
 
-		if (peek(tokenizer) == TOKEN_BRACKET_CLOSE)
+		if (peek_token(tokenizer) == TOKEN_BRACKET_CLOSE)
 			break;
 
 		if (!consume(tokenizer, TOKEN_COMMA)) {
-			printf("json: array expected comma\n");
+			JSON_DEBUG("json: array expected comma\n");
+			json_destroy(array);
 			return NULL;
 		}
 		whitespace(tokenizer);
@@ -214,36 +247,49 @@ static JsonValue* array(JsonTokenizer* tokenizer) {
 
 static JsonString* string_value(JsonTokenizer* tokenizer) {
 	if (!consume(tokenizer, TOKEN_QUOTES)) {
-		printf("json: string expected quotes, got %c", current(tokenizer));
+		JSON_DEBUG("json: string expected quotes, got %c", current(tokenizer));
 		return NULL;
 	}
 	int start = tokenizer->position;
-	while (1) {
-		switch (current(tokenizer)) {
-		case '"': {
-
-			int length = tokenizer->position - start;
-			JsonString* string = malloc(sizeof(JsonString) + sizeof(char) * (length + 1));
-			if (!string) {
-				printf("json: str alloc failed\n");
-				return NULL;
-			}
-			memset(string->string, '\0', length);
-			string->length = length + 1;
-			for (int i = 0; i < length; i++) {
-				char c = tokenizer->data[tokenizer->position - length + i];
-				string->string[i] = c;
-			}
-			string->string[length] = '\0';
-			tokenizer->position++;
-			return string;
+	int length = 0;
+	int offset = 0;
+	for (offset = 0; ; offset++) {
+		char c = peek(tokenizer, offset);
+		if (c == '\0') {
+			JSON_DEBUG("json: string eof detected\n");
+			return NULL;
 		}
-		// case '\\'
-		default:
-			tokenizer->position++;
+		if (c == '\\')
+			offset++; // Skip "\"
+		if (c == '"')
 			break;
-		}
+		length++;
 	}
+	JSON_DEBUG("json: string length %d\n", length);
+	JsonString* string = malloc(sizeof(JsonString) + sizeof(char) * (length + 1));
+	memset(string->string, '\0', length);
+	string->length = 0;
+	for (int i = 0; i < offset; i++) {
+		char c = peek(tokenizer, i);
+		if (c == '\\') {
+			char escaped = peek(tokenizer, ++i);
+			switch (escaped) {
+			case 'n': c = '\n'; break;
+			case 'b': c = '\b'; break;
+			case 'f': c = '\f'; break;
+			case 'r': c = '\r'; break;
+			case 't': c = '\t'; break;
+			case '\\': c = '\\'; break;
+			case 'u': JSON_ERROR("json: u is not supported\n"); break;
+			default: break;
+			}
+		}
+		string->string[string->length++] = c;
+	}
+	string->string[string->length++] = '\0';
+	JSON_DEBUG("json: string: '%s'\n", string->string);
+	tokenizer->position = start + offset + 1;
+	return string;
 }
 
 static JsonValue* string(JsonTokenizer* tokenizer) {
@@ -280,6 +326,7 @@ static JsonValue* number(JsonTokenizer* tokenizer) {
 }
 
 static JsonValue* json_value(JsonTokenizer* tokenizer) {
+	fflush(stdout);
 	if (is_numeric(current(tokenizer)))
 		return number(tokenizer);
 
@@ -289,12 +336,12 @@ static JsonValue* json_value(JsonTokenizer* tokenizer) {
 			return literal_value;
 	}
 
-	switch (peek(tokenizer)) {
+	switch (peek_token(tokenizer)) {
 		case TOKEN_BRACE_OPEN: return object(tokenizer);
 		case TOKEN_BRACKET_OPEN: return array(tokenizer);
 		case TOKEN_QUOTES: return string(tokenizer);
 		default:
-			printf("json: invalid token found\n");
+			JSON_DEBUG("json: invalid token found\n");
 			return NULL;
 	}
 }
@@ -303,7 +350,7 @@ static JsonValue* json_value(JsonTokenizer* tokenizer) {
 JsonValue* json_loadf(const char* filename) {
 	FILE* file = fopen(filename, "rb");
 	if (file == NULL) {
-		fprintf(stderr, "Could not open file \"%s\".\n", filename);
+		JSON_ERROR("Could not open file \"%s\".\n", filename);
 		exit(74);
 	}
 	fseek(file, 0L, SEEK_END);
@@ -313,12 +360,12 @@ JsonValue* json_loadf(const char* filename) {
 
 	char* buffer = (char*)malloc(file_size + 1);
 	if (buffer == NULL) {
-		fprintf(stderr, "Not enough memory to read \"%s\".\n", filename);
+		JSON_ERROR("Not enough memory to read \"%s\".\n", filename);
 		exit(74);
 	}
 	size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
 	if (bytes_read < file_size) {
-		fprintf(stderr, "Could not read file \"%s\".\n", filename);
+		JSON_ERROR("Could not read file \"%s\".\n", filename);
 		exit(74);
 	}
 	buffer[bytes_read] = '\0';
@@ -330,10 +377,11 @@ JsonValue* json_loadf(const char* filename) {
 }
 
 JsonValue* json_load(const char* data) {
-	printf("Loading %s\n", data);
+	JSON_DEBUG("Loading %s\n", data);
 	JsonTokenizer tokenizer;
 	tokenizer.data = data;
 	tokenizer.position = 0;
+	tokenizer.length = strlen(data);
 	return json_value(&tokenizer);
 }
 
