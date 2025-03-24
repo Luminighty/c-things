@@ -11,6 +11,7 @@ const char* dll_temp_file_name = "core.dll.tmp";
 HINSTANCE dll_handle = NULL;
 core_init_t core_init;
 core_update_t core_update;
+core_reload_t core_reload;
 
 void* get_fn_addrs(HINSTANCE dll_handle, const char* fn) {
 	void* handle = (void *)GetProcAddress(dll_handle, fn);
@@ -38,6 +39,7 @@ void reload_dll() {
 	dll_handle = load_dll();
 	core_init = get_fn_addrs(dll_handle, "core_init");
 	core_update = get_fn_addrs(dll_handle, "core_update");
+	core_reload = get_fn_addrs(dll_handle, "core_reload");
 }
 
 bool has_newer_dll(FILETIME* last_modified_time) {
@@ -62,15 +64,17 @@ void hot_reload_init() {
 	reload_dll();
 }
 
-void hot_reload_update(float time) {
+void hot_reload_update(Game* game, float time) {
 	int new_dll_timer = (int)time;
 	if (new_dll_timer != dll_timer) {
-		if (has_newer_dll(&last_modified_time))
-			reload_dll();\
+		if (has_newer_dll(&last_modified_time)) {
+			reload_dll();
+			core_reload(game);
+		}
 		dll_timer = new_dll_timer;
 	}
 }
 
 #define HOT_RELOAD_INIT() hot_reload_init();
-#define HOT_RELOAD_UPDATE(dt) hot_reload_update(dt);
+#define HOT_RELOAD_UPDATE(game, dt) hot_reload_update(game, dt);
 #define HOT_RELOAD_DESTROY() FreeLibrary(dll_handle);

@@ -6,11 +6,12 @@
 #else 
 
 #define HOT_RELOAD_INIT() // void
-#define HOT_RELOAD_UPDATE(dt) // void
+#define HOT_RELOAD_UPDATE(game, dt) // void
 #define HOT_RELOAD_DESTROY() // void
 
 void core_init(Game* game);
 void core_update(Game* game);
+void core_reload(Game* game);
 
 #endif
 
@@ -20,7 +21,7 @@ int main() {
 
 	core_init(&game);
 	while (!WindowShouldClose()) {
-		HOT_RELOAD_UPDATE(GetTime())
+		HOT_RELOAD_UPDATE(&game, GetTime())
 		core_update(&game);
 	}
 	HOT_RELOAD_DESTROY()
