@@ -1,0 +1,17 @@
+#ifndef COMPONENT_REGISTRY_H
+#define COMPONENT_REGISTRY_H
+
+
+#define COMPONENT_POSITION (1 << 0)
+#define COMPONENT_RENDERABLE (1 << 1)
+#define COMPONENT_STATS (1 << 2)
+#define COMPONENT_PLAYER (1 << 3)
+#define COMPONENT_COUNT 4
+
+#define COMPONENTS \
+	X(Position, positions, COMPONENT_POSITION) \
+	X(Renderable, renderables, COMPONENT_RENDERABLE) \
+	X(Stats, stats, COMPONENT_STATS)
+
+
+#endif // COMPONENT_REGISTRY_H
