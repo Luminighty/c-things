@@ -2,21 +2,28 @@
 #define ECS_H
 
 #include "component_registry.h"
-#include "components.h"
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-#define ENTITY_COUNT 24
+#define ENTITY_COUNT 120
 
 typedef struct {
-#define X(type, name, _) type name [ENTITY_COUNT];
+#define DENSE(type, name, _) type name [ENTITY_COUNT];
+#define SPARSE(type, name, _, limit) type name [limit]; uint16_t name##_entity[limit]; uint16_t name##_count;
+#define FLAG(type, name, _)
 	COMPONENTS
-#undef X
+#undef DENSE
+#undef SPARSE
+#undef FLAG
 } ComponentContainer;
 
-typedef uint32_t ComponentBitmap;
+#define COMPONENTBITMAP_SLOTSIZE 64
+typedef struct {
+	uint64_t bytes[(COMPONENT_SIZE / COMPONENTBITMAP_SLOTSIZE) + 1];
+} ComponentBitmap;
 
-typedef union {
+typedef union entity {
 	uint32_t id;
 	struct {
 		uint16_t gen;
@@ -33,7 +40,7 @@ typedef struct {
 } EntityContainer;
 
 
-typedef struct {
+typedef struct world {
 	ComponentContainer components;
 	EntityContainer entities;
 } World;
@@ -43,27 +50,22 @@ World world_create();
 void world_print(World* world);
 Entity entity_create(World* world);
 void entity_destroy(World* world, Entity entity);
+bool entity_is_alive(World* world, Entity entity);
 
+bool entity_has_component(World *world, Entity entity, ComponentType component);
 bool entity_has_components(World* world, Entity entity, ComponentBitmap components);
-
-Position* entity_add_position(World* world, Entity entity, Position position);
-Renderable* entity_add_renderable(World* world, Entity entity, Renderable renderable);
-Stats* entity_add_stats(World* world, Entity entity, Stats stats);
-void entity_add_player(World* world, Entity entity);
-
-Position* entity_get_position(World* world, Entity entity);
-Renderable* entity_get_renderable(World* world, Entity entity);
-Stats* entity_get_stats(World* world, Entity entity);
-
-void entity_remove_position(World* world, Entity entity);
-void entity_remove_renderable(World* world, Entity entity);
-void entity_remove_stats(World* world, Entity entity);
-void entity_remove_player(World* world, Entity entity);
 
 typedef struct {
 	ComponentBitmap bitmap;
 	Entity current;
 } EntityQuery;
+
+#define componentbitmap_create(...) _componentbitmap_create(__VA_ARGS__, COMPONENT_SIZE)
+ComponentBitmap _componentbitmap_create(ComponentType c, ...);
+
+// NOTE: I may need to generate this, but it's unused atm
+#define is_query_empty(query) !(query .bytes[0])
+#define StaticComponentBitmap(query) static ComponentBitmap query = {0}; if (is_query_empty(query)) query
 
 Entity query_begin(World* world, ComponentBitmap query);
 void query_next(World* world, Entity* entity, ComponentBitmap query);

@@ -1,0 +1,24 @@
+[Position]
+@storage = dense
+@limit = 24
+int x, y
+
+[Stats]
+int hp
+int stamina
+int strength
+
+[Renderable]
+char glyph
+int fg
+int bg
+
+[Player]
+@storage = flag
+
+[Poisoned]
+@storage = sparse
+@limit = 24
+int turns
+int damage
+

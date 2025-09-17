@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-#include "components.h"
 #include "ecs.h"
 #include "component_registry.h"
 
@@ -26,7 +25,7 @@ Entity enemy_create(World* world) {
 
 
 void system_render(World* world) {
-	ComponentBitmap query = COMPONENT_POSITION | COMPONENT_RENDERABLE;
+	ComponentBitmap query = componentbitmap_create(COMPONENT_POSITION, COMPONENT_RENDERABLE);
 	foreach_ecs_query(world, entity, query) {
 		Position* position = entity_get_position(world, entity);
 		Renderable* renderable = entity_get_renderable(world, entity);
@@ -35,12 +34,12 @@ void system_render(World* world) {
 }
 
 void system_player(World* world) {
-	ComponentBitmap query = COMPONENT_POSITION | COMPONENT_PLAYER;
+	ComponentBitmap query = componentbitmap_create(COMPONENT_POSITION, COMPONENT_PLAYER);
 	foreach_ecs_query(world, player, query) {
 		Position* position = entity_get_position(world, player);
 		position->x += 1;
 		printf("Moved player: %d %d\n", position->x, position->y);
-		if (entity_has_components(world, player, COMPONENT_STATS)) {
+		if (entity_has_component(world, player, COMPONENT_STATS)) {
 			Stats* stats = entity_get_stats(world, player);
 			printf("\tHP: %d  STAMINA: %d\n", stats->hp, stats->stamina);
 		}
@@ -54,7 +53,6 @@ int main() {
 	Entity player_no_stats = player_create(&world, 2, 30, false);
 	Entity enemy = enemy_create(&world);
 
-	world_print(&world);
 	printf("\nGAME START:\n");
 
 	system_render(&world);
@@ -66,4 +64,3 @@ int main() {
 	return 0;
 }
 
-#include "ecs.c"
