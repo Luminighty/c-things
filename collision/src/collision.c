@@ -52,26 +52,6 @@ static inline bool ray_box_intersect(CollisionBox box, Ray2 ray_inv, double* tmi
 	return *tmax >= *tmin;
 }
 
-static Vector2 get_box_normal(CollisionBox* box, Ray2 ray_inv, double tmin) {
-	Vector2 bmin = box_min(box);
-	Vector2 bmax = box_max(box);
-
-	double tx1 = (bmin.x - ray_inv.origin.x) * ray_inv.delta.x;
-	double tx2 = (bmax.x - ray_inv.origin.x) * ray_inv.delta.x;
-	double ty1 = (bmin.y - ray_inv.origin.y) * ray_inv.delta.y;
-	double ty2 = (bmax.y - ray_inv.origin.y) * ray_inv.delta.y;
-
-	if (tmin == tx1)
-		return (Vector2){ -1, 0 };
-	if (tmin == tx2)
-		return (Vector2){ 1, 0 };
-	if (tmin == ty1)
-		return (Vector2){ 0, -1 };
-	if (tmin == ty2)
-		return (Vector2){ 0, 1 };
-	return (Vector2){ 0, 0 };
-}
-
 
 ColliderMoveResult collider_move(ColliderId id, Vector2 delta) {
 	if (Vector2LengthSqr(delta) < 0.0f)
@@ -85,7 +65,13 @@ ColliderMoveResult collider_move(ColliderId id, Vector2 delta) {
 		.x = 1.f / ray.delta.x,
 		.y = 1.f / ray.delta.y,
 	};
-	ColliderMoveResult result = {0};
+	ColliderMoveResult result = {
+		.collided = false,
+		.resolved_position = {
+			.x = colliders[id].box.center.x + delta.x,
+			.y = colliders[id].box.center.y + delta.y,
+		}
+	};
 	result.distance = 1.0f;
 	for (ColliderId i = 0; i < collider_count; i++) {
 		if (id == i)
@@ -103,12 +89,20 @@ ColliderMoveResult collider_move(ColliderId id, Vector2 delta) {
 		result.collided = true;
 		result.other = i;
 	}
-	if (result.collided) {
-		result.resolved_position.x = ray.origin.x + ray.delta.x * result.distance;
-		result.resolved_position.y = ray.origin.y + ray.delta.y * result.distance;
-		// TODO: Update colliders[id].box.center
-	}
+	if (!result.collided)
+		return result;
+	result.resolved_position.x = ray.origin.x + ray.delta.x * result.distance;
+	result.resolved_position.y = ray.origin.y + ray.delta.y * result.distance;
+	// TODO: Update colliders[id].box.center
+	
 	return result;
 }
 
 
+Vector2 slide(Vector2 move, Vector2 normal) {
+    double dot = move.x * normal.x + move.y * normal.y;
+    return (Vector2){
+        move.x - dot * normal.x,
+        move.y - dot * normal.y
+    };
+}
