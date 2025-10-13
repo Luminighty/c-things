@@ -26,7 +26,15 @@ typedef struct {
 
 
 typedef struct {
+	Vector2 origin;
+	Vector2 delta;
+	Vector2 inv;
+} Ray2Extended;
+
+
+typedef struct {
 	bool collided;
+	bool is_inside_box;
 	ColliderId other;
 	float distance;
 	Vector2 resolved_position;
@@ -35,5 +43,7 @@ typedef struct {
 ColliderId collider_create(Vector2 center, Vector2 extends);
 Collider* collider_get(ColliderId id);
 ColliderMoveResult collider_move(ColliderId id, Vector2 delta);
+Ray2Extended ray2_create_ex(Vector2 origin, Vector2 delta);
+Ray2 ray2_create(Vector2 origin, Vector2 delta);
 
 #endif // COLLISION_H

@@ -53,6 +53,8 @@ int main() {
 			box.center = result.resolved_position;
 			draw_box(box, YELLOW);
 		}
+		if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
+			player->box.center = result.resolved_position;
 
 		CollisionBox target = player->box;
 		target.center = result.resolved_position;
