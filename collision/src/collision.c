@@ -11,7 +11,12 @@ ColliderId collider_count = 0;
 ColliderId collider_create(Vector2 center, Vector2 extends) {
 	ColliderId id = collider_count++;
 	colliders[id].id = id;
-	colliders[id].box = (CollisionBox){.center = center, .extends = extends};
+	// colliders[id].box = (CollisionBox){.center = center, .extends = extends};
+	const static float SCALE = 2.f;
+	colliders[id].box = (CollisionBox){
+		.center = {.x = center.x * SCALE, .y = center.y * SCALE},
+		.extends = {.x = extends.x * SCALE, .y = extends.y * SCALE}
+	};
 	return id;
 }
 Collider* collider_get(ColliderId id) { return &colliders[id]; }
@@ -102,7 +107,8 @@ static inline ColliderMoveResult run_pass(ColliderId id, Ray2Extended ray) {
 	}
 	if (!result.collided)
 		return result;
-	float distance = result.distance + (result.is_inside_box ? EPSILON : -EPSILON);
+	#define EPS 0.001f
+	float distance = result.distance + (result.is_inside_box ? EPS : -EPS);
 	result.resolved_position.x = ray.origin.x + ray.delta.x * distance;
 	result.resolved_position.y = ray.origin.y + ray.delta.y * distance;
 	return result;
@@ -123,8 +129,12 @@ ColliderMoveResult collider_move(ColliderId id, Vector2 delta) {
 		return (ColliderMoveResult){0};
 	Ray2Extended ray = ray2_create_ex(colliders[id].box.center, delta);
 	ColliderMoveResult result = run_pass(id, ray);
-	if (!result.collided)
+	if (!result.collided) {
+		#ifndef DEBUG_ONLY
+		colliders[id].box.center = result.resolved_position;
+		#endif
 		return result;
+	}
 
 	#ifdef DEBUG_ONLY
 	// NOTE: When debugging, we'll revert the box to the original state

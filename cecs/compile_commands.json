@@ -1,0 +1,53 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-o",
+      "./scripts/component_parser",
+      "./scripts/component_parser.c"
+    ],
+    "directory": "/home/luminight/projects/c-things/cecs",
+    "file": "/home/luminight/projects/c-things/cecs/scripts/component_parser.c",
+    "output": "/home/luminight/projects/c-things/cecs/scripts/component_parser"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./include/",
+      "-c",
+      "-o",
+      "./build/ecs.o",
+      "./src/ecs.c"
+    ],
+    "directory": "/home/luminight/projects/c-things/cecs",
+    "file": "/home/luminight/projects/c-things/cecs/src/ecs.c",
+    "output": "/home/luminight/projects/c-things/cecs/build/ecs.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./include/",
+      "-c",
+      "-o",
+      "./build/component_registry.o",
+      "./src/component_registry.c"
+    ],
+    "directory": "/home/luminight/projects/c-things/cecs",
+    "file": "/home/luminight/projects/c-things/cecs/src/component_registry.c",
+    "output": "/home/luminight/projects/c-things/cecs/build/component_registry.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./include/",
+      "-c",
+      "-o",
+      "./build/main.o",
+      "./src/main.c"
+    ],
+    "directory": "/home/luminight/projects/c-things/cecs",
+    "file": "/home/luminight/projects/c-things/cecs/src/main.c",
+    "output": "/home/luminight/projects/c-things/cecs/build/main.o"
+  }
+]

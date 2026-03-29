@@ -8,15 +8,24 @@
 
 #define ENTITY_COUNT 120
 
+
+#define COMPONENTS\
+ DENSE(Position, position, COMPONENT_POSITION)\
+ DENSE(Stats, stats, COMPONENT_STATS)\
+ DENSE(Renderable, renderable, COMPONENT_RENDERABLE)\
+ FLAG(Player, player, COMPONENT_PLAYER)\
+ SPARSE(Poisoned, poisoned, COMPONENT_POISONED, 24)
+
 typedef struct {
 #define DENSE(type, name, _) type name [ENTITY_COUNT];
 #define SPARSE(type, name, _, limit) type name [limit]; uint16_t name##_entity[limit]; uint16_t name##_count;
-#define FLAG(type, name, _)
+#define FLAG(type, name, _) // NOTE: Flags don't contain data, so we skip them
 	COMPONENTS
-#undef DENSE
-#undef SPARSE
 #undef FLAG
+#undef SPARSE
+#undef DENSE
 } ComponentContainer;
+
 
 #define COMPONENTBITMAP_SLOTSIZE 64
 typedef struct {
